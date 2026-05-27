@@ -2,17 +2,6 @@
 #include <util/delay.h>
 #include <avr/io.h>
 
-/* 
- * CRITICAL FIX:
- * Since you are using an UNO TFT shield on a Mega2560 (evident from the LCD data pins 8,9,2,3,4,5,6,7),
- * the SD card is physically hardwired to Arduino Pins 10, 11, 12, 13.
- * On a Mega2560, Pins 11, 12, 13 are NOT the hardware SPI pins! 
- * (Hardware SPI on Mega is 50, 51, 52).
- * Additionally, Pin 4 (PG5) was being used for LCD Data, so it cannot be SD CS!
- * 
- * Therefore, we MUST use Software SPI (Bit-Banging) on pins PB4 (D10), PB5 (D11), PB6 (D12), PB7 (D13).
- */
-
 #define SD_CS_PORT   PORTB
 #define SD_CS_DDR    DDRB
 #define SD_CS_PIN    PB4  // Pin 10
