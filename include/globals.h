@@ -34,4 +34,13 @@ extern volatile long current_step_x;
 extern volatile long current_step_y;
 extern uint16_t feedrate_delay_us;
 
+// ISR Bresenham State Variables
+extern volatile long isr_dx;
+extern volatile long isr_dy;
+extern volatile int isr_sx;
+extern volatile int isr_sy;
+extern volatile long isr_err;
+extern volatile long isr_steps_taken;
+extern volatile long isr_total_steps;
+
 #endif

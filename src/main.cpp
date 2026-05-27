@@ -28,6 +28,15 @@ volatile long current_step_x = 0;
 volatile long current_step_y = 0;
 uint16_t feedrate_delay_us = 1000;
 
+// ISR Bresenham State Variables
+volatile long isr_dx = 0;
+volatile long isr_dy = 0;
+volatile int isr_sx = 0;
+volatile int isr_sy = 0;
+volatile long isr_err = 0;
+volatile long isr_steps_taken = 0;
+volatile long isr_total_steps = 0;
+
 // ==========================================
 // MAIN LOOP
 // ==========================================
