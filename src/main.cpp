@@ -27,7 +27,7 @@
 // KINETIC CONFIGURATION (PORTA)
 // ==========================================
 #define INVERT_X_DIR false
-#define INVERT_Y_DIR false
+#define INVERT_Y_DIR true
 #define STEPS_PER_MM 5
 
 #define MOTOR_PORT PORTA
@@ -426,6 +426,32 @@ bool read_gcode_line(char* buf, int max_len) {
     return true;
 }
 
+float custom_atof(const char* str) {
+    float res = 0.0;
+    float frac = 1.0;
+    bool in_frac = false;
+    bool neg = false;
+    if (*str == '-') { neg = true; str++; }
+    while (*str) {
+        if (*str >= '0' && *str <= '9') {
+            if (in_frac) {
+                frac *= 10.0;
+                res += (*str - '0') / frac;
+            } else {
+                res = res * 10.0 + (*str - '0');
+            }
+        } else if (*str == '.' || *str == ',') {
+            in_frac = true;
+        } else if (*str == ' ' || *str == '\r' || *str == '\n') {
+            // skip
+        } else {
+            break; // Stop parsing on other chars
+        }
+        str++;
+    }
+    return neg ? -res : res;
+}
+
 void process_gcode_line(const char* line) {
     // Basic parser for G0 (rapid move) and G1 (linear move)
     if ((line[0] == 'G' && line[1] == '0') || (line[0] == 'G' && line[1] == '1')) {
@@ -435,10 +461,10 @@ void process_gcode_line(const char* line) {
         const char* ptr = line + 2;
         while (*ptr) {
             if (*ptr == 'X') {
-                next_x = atof(ptr + 1);
+                next_x = custom_atof(ptr + 1);
             }
             else if (*ptr == 'Y') {
-                next_y = atof(ptr + 1);
+                next_y = custom_atof(ptr + 1);
             }
             ptr++;
         }
@@ -453,9 +479,9 @@ void process_gcode_line(const char* line) {
 void randeaza_meniu_principal() {
     lcd_clear(0x122A);
     lcd_draw_string(140, 20, "MENIU PLOTTER", 0xFFFF, 0x122A, 3);
-    lcd_draw_rect(40, 80, 440, 140, 0x39E7);   lcd_draw_string(60, 100, "1. MOD TOUCH DRAW", 0x0000, 0x39E7, 2);
-    lcd_draw_rect(40, 160, 440, 220, 0x39E7);  lcd_draw_string(60, 180, "2. MOD PRINT SD CARD", 0x0000, 0x39E7, 2);
-    lcd_draw_rect(40, 240, 440, 300, 0x39E7);  lcd_draw_string(60, 260, "3. SET POZITIE HOME", 0x0000, 0x39E7, 2);
+    lcd_draw_rect(40, 80, 440, 140, 0x39E7);   lcd_draw_string(60, 100, "1. MOD PRINT SD CARD", 0x0000, 0x39E7, 2);
+    lcd_draw_rect(40, 160, 440, 220, 0x39E7);  lcd_draw_string(60, 180, "2. SET HOME POSITION", 0x0000, 0x39E7, 2);
+    lcd_draw_rect(40, 240, 440, 300, 0x39E7);  lcd_draw_string(60, 260, "3. GO HOMING", 0x0000, 0x39E7, 2);
 }
 
 void randeaza_interfata_sd() {
@@ -504,32 +530,6 @@ void uart_print_int(long val) {
     char buf[12];
     ltoa(val, buf, 10);
     uart_print(buf);
-}
-
-float custom_atof(const char* str) {
-    float res = 0.0;
-    float frac = 1.0;
-    bool in_frac = false;
-    bool neg = false;
-    if (*str == '-') { neg = true; str++; }
-    while (*str) {
-        if (*str >= '0' && *str <= '9') {
-            if (in_frac) {
-                frac *= 10.0;
-                res += (*str - '0') / frac;
-            } else {
-                res = res * 10.0 + (*str - '0');
-            }
-        } else if (*str == '.' || *str == ',') {
-            in_frac = true;
-        } else if (*str == ' ' || *str == '\r' || *str == '\n') {
-            // skip
-        } else {
-            break; // Stop parsing on other chars
-        }
-        str++;
-    }
-    return neg ? -res : res;
 }
 
 void processCommand() {
@@ -587,19 +587,23 @@ void processCommand() {
         
         if (stareCurenta == STATE_MAIN_MENU) {
             if (val == 1) {
-                stareCurenta = STATE_TOUCH_DRAW;
-                necesitaRenderizare = true;
-                uart_print("Entered TOUCH DRAW");
-            } else if (val == 2) {
                 stareCurenta = STATE_SD_MENU;
                 incarca_lista_sd_petit();
                 selectieCurenta = 0;
                 necesitaRenderizare = true;
                 uart_print("Entered SD CARD MENU");
+            } else if (val == 2) {
+                // Set current physical position to logical (0,0)
+                current_step_x = 0;
+                current_step_y = 0;
+                current_x_mm = 0.0;
+                current_y_mm = 0.0;
+                uart_print("HOME POSITION SET (0,0)");
             } else if (val == 3) {
-                stareCurenta = STATE_HOME;
-                necesitaRenderizare = true;
-                uart_print("Entered HOME SET");
+                // Move back to logical (0,0)
+                uart_print("GOING HOME...");
+                moveTo(0.0, 0.0);
+                uart_print(" -> Done");
             } else {
                 uart_print("Invalid menu option");
             }
