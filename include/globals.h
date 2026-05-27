@@ -27,6 +27,9 @@ extern FATFS fs;
 extern int sd_err;
 extern char err_stage[10];
 
+// Kinetics Config
+extern int microstepping_multiplier;
+
 // Motion Tracking
 extern volatile float current_x_mm;
 extern volatile float current_y_mm;

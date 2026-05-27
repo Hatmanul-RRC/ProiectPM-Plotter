@@ -22,6 +22,8 @@ FATFS fs;
 int sd_err = 0;
 char err_stage[10] = "";
 
+int microstepping_multiplier = 16; // Set to 1 for Full Step, 16 for Microstepping
+
 volatile float current_x_mm = 0.0;
 volatile float current_y_mm = 0.0;
 volatile long current_step_x = 0;

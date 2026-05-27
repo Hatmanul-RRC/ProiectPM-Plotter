@@ -8,7 +8,7 @@
 
 #define INVERT_X_DIR false
 #define INVERT_Y_DIR true
-#define STEPS_PER_MM 5
+#define BASE_STEPS_PER_MM 5 
 
 #define MOTOR_PORT PORTA
 #define MOTOR_DDR  DDRA
@@ -22,16 +22,32 @@ void init_steppers() {
     MOTOR_PORT &= ~((1 << X_DIR_PIN) | (1 << X_STEP_PIN) | (1 << Y_DIR_PIN) | (1 << Y_STEP_PIN));
 }
 
+void update_timer_speed() {
+    cli();
+    TCCR1B &= ~((1 << CS12) | (1 << CS11) | (1 << CS10)); // Clear prescaler bits
+    
+    if (microstepping_multiplier == 16) {
+        // 1/16th Microstepping -> 4000 Hz
+        OCR1A = 499; 
+        TCCR1B |= (1 << CS11); // Prescaler 8
+    } else {
+        // Full Step -> 250 Hz
+        OCR1A = 999; 
+        TCCR1B |= (1 << CS11) | (1 << CS10); // Prescaler 64
+    }
+    sei();
+}
+
 void init_timer1() {
     cli(); 
     TCCR1A = 0;
     TCCR1B = 0;
     TCNT1  = 0;
-    OCR1A = 999; 
-    TCCR1B |= (1 << WGM12);
-    TCCR1B |= (1 << CS11) | (1 << CS10);  
+    TCCR1B |= (1 << WGM12); // CTC mode
     TIMSK1 |= (1 << OCIE1A);
     sei(); 
+    
+    update_timer_speed();
 }
 
 ISR(TIMER1_COMPA_vect) {
@@ -39,8 +55,8 @@ ISR(TIMER1_COMPA_vect) {
 
     if (stop_requested) {
         is_moving = false;
-        current_x_mm = (float)current_step_x / STEPS_PER_MM;
-        current_y_mm = (float)current_step_y / STEPS_PER_MM;
+        current_x_mm = (float)current_step_x / (BASE_STEPS_PER_MM * microstepping_multiplier);
+        current_y_mm = (float)current_step_y / (BASE_STEPS_PER_MM * microstepping_multiplier);
         return;
     }
 
@@ -70,8 +86,8 @@ ISR(TIMER1_COMPA_vect) {
         isr_steps_taken++;
     } else {
         is_moving = false;
-        current_x_mm = (float)current_step_x / STEPS_PER_MM;
-        current_y_mm = (float)current_step_y / STEPS_PER_MM;
+        current_x_mm = (float)current_step_x / (BASE_STEPS_PER_MM * microstepping_multiplier);
+        current_y_mm = (float)current_step_y / (BASE_STEPS_PER_MM * microstepping_multiplier);
     }
 }
 
@@ -80,8 +96,9 @@ void moveTo(float target_x_mm, float target_y_mm) {
         checkSerial();
     }
     
-    long target_step_x = (long)(target_x_mm * STEPS_PER_MM);
-    long target_step_y = (long)(target_y_mm * STEPS_PER_MM);
+    long current_steps_per_mm = BASE_STEPS_PER_MM * microstepping_multiplier;
+    long target_step_x = (long)(target_x_mm * current_steps_per_mm);
+    long target_step_y = (long)(target_y_mm * current_steps_per_mm);
 
     long dx = labs(target_step_x - current_step_x);
     long dy = labs(target_step_y - current_step_y);
